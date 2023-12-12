@@ -1,0 +1,55 @@
+defaults:
+  - _self_
+  - override hydra/job_logging: none # hydraで自動的にログファイルが生成されるのを防ぐ
+
+debug: False
+seed: 113
+feature:
+  YadoRaw:
+    feature_cols:
+      - yad_type
+      - total_room_cnt
+      - wireless_lan_flg
+      - onsen_flg
+      - kd_stn_5min
+      - kd_bch_5min
+      - kd_slp_5min
+      - kd_conv_walk_5min
+      - wid_cd
+      - ken_cd
+      - lrg_cd
+      - sml_cd
+    key_cols:
+      - yad_no
+  Session:
+    feature_cols:
+      - user_mode_wid_cd
+      - user_mode_ken_cd
+      - user_mode_lrg_cd
+      - user_mode_sml_cd
+      - user_seq_cnt
+      - user_mean_total_room_cnt
+      - user_mean_wireless_lan_flg
+      - user_mean_onsen_flg
+      - user_mean_kd_stn_5min
+      - user_mean_kd_bch_5min
+      - user_mean_kd_slp_5min
+      - user_mean_kd_conv_walk_5min
+    key_cols:
+      - session_id
+  YadoRank:
+    feature_cols:
+      - yad_cnt
+      - yad_cnt_rank
+      - yad_cnt_rank_wid_cd
+      - yad_cnt_rank_ken_cd
+      - yad_cnt_rank_lrg_cd
+      - yad_cnt_rank_sml_cd
+    key_cols:
+      - yad_no
+
+hydra:
+  # hydraで自動的にログファイルが生成されるのを防ぐ
+  output_subdir: null
+  job:
+    chdir: False
