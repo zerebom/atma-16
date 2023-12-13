@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import Literal, TypeAlias
 
+import numpy as np
 import pandas as pd
 import polars as pl
+from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 DataFrame: TypeAlias = pl.DataFrame | pd.DataFrame
@@ -44,9 +46,19 @@ class AtmaData16Loader:
         assert idx2ses[0] == "000007603d533d30453cc45d0f3d119f"
         return idx2ses, ses2idx
 
-    def load_train_label(self, frame_type: DfType = "pl") -> DataFrame:
-        df = self._load_parquet(self.input_dir / "train_label.parquet", frame_type)
-        return self.convert_ses2idx(df)
+    def load_train_label(
+        self, frame_type: DfType = "pl", assign_fold: bool = True, fold_num: int = 5, seed: int = 113
+    ) -> DataFrame:
+        label = self._load_parquet(self.input_dir / "train_label.parquet", frame_type)
+        if assign_fold:
+            kf = KFold(n_splits=fold_num, shuffle=True, random_state=seed)
+            fold_assignments = np.full(label.height, -1, dtype=int)
+
+            for i, (_, valid_index) in enumerate(kf.split(label)):
+                fold_assignments[valid_index] = i
+            label = label.with_columns(pl.Series("fold", fold_assignments))
+
+        return self.convert_ses2idx(label)
 
     def load_yado(self, frame_type: DfType = "pl") -> DataFrame:
         yado = self._load_parquet(self.input_dir / "yado.parquet", "pl")
