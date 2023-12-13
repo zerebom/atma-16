@@ -25,7 +25,10 @@ tqdm = "^4.66.1"
 pyarrow = "^14.0.1"
 fastparquet = "^2023.10.1"
 gensim = "^4.3.2"
-scorta = {path = "/Users/zerebom/ghq/github.com/zerebom/scorta", develop = true}
+scorta = [
+    {path = "/Users/zerebom/ghq/github.com/zerebom/scorta", platform = "darwin", develop = true},
+    {git = "https://github.com/zerebom/scorta.git", platform = "linux", develop = true}
+]
 
 [tool.mypy]
 show_error_context = true

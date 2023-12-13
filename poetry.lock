@@ -2169,7 +2169,7 @@ name = "scorta"
 version = "0.1.0"
 description = ""
 optional = false
-python-versions = "^3.11"
+python-versions = "^3.10"
 files = []
 develop = true
 
@@ -2191,6 +2191,36 @@ xgboost = "^2.0.2"
 [package.source]
 type = "directory"
 url = "../scorta"
+
+[[package]]
+name = "scorta"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.10"
+files = []
+develop = true
+
+[package.dependencies]
+catboost = "^1.2.2"
+hydra-core = "^1.3.2"
+lightgbm = "^4.1.0"
+loguru = "^0.7.2"
+matplotlib = "^3.8.2"
+numpy = "^1.26.2"
+pandas = "^2.1.3"
+polars = "^0.19.19"
+pytest = "^7.4.3"
+scikit-learn = "^1.3.2"
+seaborn = "^0.13.0"
+wandb = "^0.16.1"
+xgboost = "^2.0.2"
+
+[package.source]
+type = "git"
+url = "https://github.com/zerebom/scorta.git"
+reference = "HEAD"
+resolved_reference = "86b1d7dc0b961859da9d934d37367c89637a1e3a"
 
 [[package]]
 name = "seaborn"
@@ -2661,4 +2691,4 @@ scikit-learn = ["scikit-learn"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "14e3881474739452b2878920f771a8704677c2c7deed43e4a9bf659fd9bcdf1c"
+content-hash = "4d3e88568f05fb1508ef2008abc7e8d593c77d2c736324aacff0181b005b85e2"
