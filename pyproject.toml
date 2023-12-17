@@ -26,9 +26,11 @@ pyarrow = "^14.0.1"
 fastparquet = "^2023.10.1"
 gensim = "^4.3.2"
 scorta = [
-    {path = "/Users/zerebom/ghq/github.com/zerebom/scorta", platform = "darwin", develop = true},
-    {git = "https://github.com/zerebom/scorta.git", platform = "linux", develop = true}
+    {git = "https://github.com/zerebom/scorta.git", platform = "linux", develop = true},
 ]
+implicit = "^0.7.2"
+scipy = "^1.11.4"
+h5py = "^3.10.0"
 
 [tool.mypy]
 show_error_context = true

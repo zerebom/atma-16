@@ -166,3 +166,4 @@ cython_debug/
 *.tfevents
 catboost_info/
 .vscode/
+wandb/
