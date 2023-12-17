@@ -1,7 +1,9 @@
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Any, Iterator, Literal
 
+import numpy as np
 import polars as pl
+import scipy
 from scorta.recsys.candidate_generate import Candidate
 
 from atma_16.dataset.dataset import AtmaData16Loader
@@ -113,7 +115,42 @@ class CoVisitCandidate(Atma16Candidate):
         return co_view_df
 
 
+class PopBiasAwareCoVisitCandidate(Atma16Candidate):
+    def generate(self) -> pl.DataFrame:
+        all_log = self.data_loader.load_all_log()
+        log = self.data_loader.load_train_log() if self.mode == "train" else self.data_loader.load_test_log()
+
+        yad_cnt_df = all_log.group_by("yad_no").agg(pl.count().alias("yad_cnt"))
+        item2item_df = (
+            all_log.join(all_log, on="session_id")
+            .filter(pl.col("yad_no") != pl.col("yad_no_right"))
+            .group_by("yad_no", "yad_no_right")
+            .count()
+            .join(yad_cnt_df, on="yad_no")
+            .join(yad_cnt_df, left_on="yad_no_right", right_on="yad_no")
+            .with_columns((pl.col("count") / (pl.col("yad_cnt") * pl.col("yad_cnt_right")).sqrt()).alias("score"))
+        )
+
+        co_view_df = (
+            log.join(item2item_df, left_on=["yad_no"], right_on=["yad_no_right"], how="left")
+            .group_by(["session_id", "yad_no_right"])
+            .agg(pl.col("score").sum())
+            .sort("session_id", "score", descending=True)
+            .rename({"yad_no_right": "yad_no"})
+            .select(
+                pl.col(["session_id", "yad_no"]),
+                over_rank("score", "session_id").alias("rank"),
+                min_max_scaler("score"),
+            )
+            .sort("score", descending=True)
+            .drop_nulls()
+        )
+        return co_view_df
+
+
 class TopBookedFromLastViewCandidate(Atma16Candidate):
+    """最後に見た宿から予約された宿を推薦する"""
+
     def generate(self) -> pl.DataFrame:
         label = self.data_loader.load_train_label()
         train_log = (
@@ -160,3 +197,88 @@ class TopBookedFromLastViewCandidate(Atma16Candidate):
             )
         )
         return out_df
+
+
+class ImplicitCandidate(Atma16Candidate):
+    def __init__(
+        self,
+        data_loader: AtmaData16Loader,
+        model: Any,  # ex) implicit.als.AlternatingLeastSquares
+        matrix: scipy.sparse.csr_matrix,
+        output_dir: str | Path,
+        mode: Literal["train", "test"] = "train",
+        user_col: str | None = "session_id",
+        item_col: str | None = "yad_no",
+        target_df: pl.DataFrame | None = None,
+        top_k: int = 10,
+        fold_num: int = 5,
+    ):
+        """
+        mat: scipy.sparse.csr_matrix(  target, (user_ids, item_ids) )
+        ex)
+            target = np.ones(len(all_log)).astype(int)
+            ses_ids = all_log["session_id"].to_numpy().astype(int)
+            yad_ids = all_log["yad_no"].to_numpy().astype(int)
+
+            mat = sp.csr_matrix((target, (ses_ids, yad_ids)))
+            mat = bm25_weight(mat, K1=100, B=0.8)
+        """
+        super().__init__(
+            data_loader,
+            output_dir=output_dir,
+            user_col=user_col,
+            item_col=item_col,
+            target_df=target_df,
+            mode=mode,
+            top_k=top_k,
+            fold_num=fold_num,
+        )
+        self.model = model
+        self.matrix = matrix
+        self.top_k = top_k
+
+    def generate(self) -> pl.DataFrame:
+        log = self.data_loader.load_train_log() if self.mode == "train" else self.data_loader.load_test_log()
+        user_ids = log[self.user_col].unique().to_numpy()
+
+        self.model.fit(self.matrix)
+
+        ids, scores = self.model.recommend(
+            user_ids, self.matrix[user_ids], N=self.top_k, filter_already_liked_items=False
+        )
+
+        df = pl.DataFrame(
+            {
+                self.user_col: np.repeat(user_ids, self.top_k),
+                self.item_col: ids.flatten(),
+                "score": scores.flatten(),
+            }
+        )
+        df = df.with_columns(over_rank("score", self.user_col).alias("rank"), pl.col(self.item_col)).cast(pl.Int64)
+        return df
+
+
+class BPRCandidate(ImplicitCandidate):
+    pass
+
+
+class LMFCandidate(ImplicitCandidate):
+    def generate(self) -> pl.DataFrame:
+        log = self.data_loader.load_train_log() if self.mode == "train" else self.data_loader.load_test_log()
+        user_ids = log[self.user_col].unique().to_numpy()
+
+        self.model.fit(self.matrix, show_progress=True)
+
+        ids, scores = self.model.recommend(
+            user_ids, self.matrix[user_ids], N=self.top_k, filter_already_liked_items=False
+        )
+
+        df = pl.DataFrame(
+            {
+                self.user_col: np.repeat(user_ids, self.top_k),
+                self.item_col: ids.flatten(),
+                "score": scores.flatten(),
+            }
+        )
+        df = df.with_columns(over_rank("score", self.user_col).alias("rank"), pl.col(self.item_col)).cast(pl.Int64)
+        return df

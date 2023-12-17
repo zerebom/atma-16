@@ -64,7 +64,7 @@ class AtmaData16Loader:
         yado = self._load_parquet(self.input_dir / "yado.parquet", "pl")
         cd_cols = ["wid_cd", "ken_cd", "lrg_cd", "sml_cd"]
         for col in cd_cols:
-            idx2cat = dict(enumerate(yado[col].unique()))
+            idx2cat = dict(enumerate(yado[col].unique(maintain_order=True)))
             cat2idx = {k: idx for idx, k in idx2cat.items()}
             yado = yado.with_columns(pl.col(col).replace(cat2idx, default=None)).fill_null(0)
 
